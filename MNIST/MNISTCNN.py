@@ -108,7 +108,7 @@ def prep_dataLoader(mode, batch_size):
     return dataloader
 
 
-BATCH_SIZE = 1
+BATCH_SIZE = 50
 train_len = NUMDataset('train').__len__()
 train_loader = prep_dataLoader(mode='train', batch_size=BATCH_SIZE)
 val_len = NUMDataset('val').__len__()
@@ -211,8 +211,8 @@ for epoch in range(n_epoch):
         imgs,labels = imgs.to(device),labels.to(device)
 
         outputs = model(imgs)
-        labels = labels.to(torch.float64)
-        loss = criterion(outputs,labels)
+
+        loss = criterion(outputs,labels.long())
 
         optimizer.zero_grad()
 
