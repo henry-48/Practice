@@ -108,7 +108,7 @@ def prep_dataLoader(mode, batch_size):
     return dataloader
 
 
-BATCH_SIZE = 50
+BATCH_SIZE = 500
 train_len = NUMDataset('train').__len__()
 train_loader = prep_dataLoader(mode='train', batch_size=BATCH_SIZE)
 val_len = NUMDataset('val').__len__()
@@ -170,7 +170,7 @@ class Classifier(nn.Module):
         )
 
         self.fc_layer = nn.Sequential(
-            nn.Linear(256,256),
+            nn.Linear(256*1*1,256),
             nn.ReLU(),
             nn.Linear(256,128),
             nn.ReLU(),
@@ -187,17 +187,17 @@ class Classifier(nn.Module):
 
         return x
 
-
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 model = Classifier().to(device)
 model.device =device
-
+model_path = './modelCNN.ckpt'
 criterion = nn.CrossEntropyLoss()
 
 optimizer =torch.optim.Adam(model.parameters(),lr = 0.00001, weight_decay=1e-4)
 
 n_epoch = 20
+best_acc = 0.0
 
 for epoch in range(n_epoch):
     model.train()
@@ -206,8 +206,11 @@ for epoch in range(n_epoch):
 
     for batch in tqdm(train_loader):
         imgs, labels =batch
+
         imgs = torch.unsqueeze(imgs,0)
+        imgs = np.transpose(imgs, (1, 0, 2, 3))
         imgs = imgs.to(torch.float32)
+
         imgs,labels = imgs.to(device),labels.to(device)
 
         outputs = model(imgs)
@@ -228,6 +231,9 @@ for epoch in range(n_epoch):
     train_loss =sum(train_loss)/len(train_loss)
     train_acc = sum(train_acc)/len(train_acc)
 
+
+
+
     print(f"[ Train | {epoch + 1:03d}/{n_epoch:03d} ] loss = {train_loss:.5f}, acc = {train_acc:.5f}")
 
     model.eval()
@@ -238,21 +244,28 @@ for epoch in range(n_epoch):
     for batch in tqdm(val_loader):
         imgs, labels = batch
         imgs = torch.unsqueeze(imgs, 0)
+        imgs = np.transpose(imgs, (1, 0, 2, 3))
+        imgs = imgs.to(torch.float32)
+
         imgs, labels = imgs.to(device), labels.to(device)
 
         with torch.no_grad():
             outputs = model(imgs)
 
-        loss =criterion(outputs,labels)
+        loss =criterion(outputs,labels.long())
 
         acc = (outputs.argmax(dim=-1) == labels.to(device)).float().mean()
 
         valid_loss.append(loss.item())
         valid_acc.append(acc)
 
-        valid_loss = sum(valid_loss) / len(valid_loss)
-        valid_acc = sum(valid_acc) / len(valid_acc)
+    valid_loss = sum(valid_loss) / len(valid_loss)
+    valid_acc = sum(valid_acc) / len(valid_acc)
+    print(f"[ Valid | {epoch + 1:03d}/{n_epoch:03d} ] loss = {valid_loss:.5f}, acc = {valid_acc:.5f}")
+    if valid_acc > best_acc:
+        best_acc = valid_acc
+        torch.save(model.state_dict(), model_path)
+        print('saving model with acc {:.3f}'.format(best_acc))
 
-        print(f"[ Valid | {epoch + 1:03d}/{n_epoch:03d} ] loss = {valid_loss:.5f}, acc = {valid_acc:.5f}")
 
 
